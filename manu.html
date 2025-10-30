@@ -1,32 +1,45 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ลอยกระทงออนไลน์ | หน้ากระทง</title>
-  <link rel="stylesheet" href="style1.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ลอยกระทงออนไลน์ | เลือกกระทง</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="title-image">
-  <img src="หัวข้อ.png" alt="ลอยกระทงออนไลน์">
-</div>
- <div class="river"></div>
 
+  <div class="container">
+    <!-- ส่วนกรอกชื่อและคำอธิษฐาน -->
+    <div class="input-area">
+      <label for="name">ชื่อของคุณ</label>
+      <input type="text" id="name" placeholder="กรอกชื่อของคุณ...">
+      <label for="wish">คำอธิษฐาน</label>
+      <textarea id="wish" placeholder="เขียนคำอธิษฐานของคุณที่นี่..."></textarea>
+    </div>
 
-  <div class="button-area">
-    <a href="index.html"><button class="btn">สร้างกระทง</button></a>
+    <!-- ส่วนเลือกกระทง -->
+    <div class="krathong-choice">
+      <h2>เลือกกระทงของคุณ</h2>
+      <div class="krathong-grid">
+        <img src="พนานาก.png" alt="กระทงดอกไม้" onclick="selectKrathong(this)">
+        <img src="หมูเด้ง.png" alt="กระทงใบตอง" onclick="selectKrathong(this)">
+        <img src="เสือ.png"   alt="กระทงปลา"   onclick="selectKrathong(this)">
+        <img src="กระทงใบตองสีแดง.png"   alt="กระทงหงส์"  onclick="selectKrathong(this)">
+      </div>
+    </div>
   </div>
 
-  <!-- 🎆 เพิ่มพื้นหลังดาวและพลุ -->
-  <canvas id="stars" aria-hidden="true"></canvas>
-  <canvas id="fireworks" aria-hidden="true"></canvas>
+  <div class="button-area">
+    <button class="btn" onclick="saveAndGo()">ลอยกระทง</button>
+  </div>
 
-  <!-- ✅ โหลด Firebase -->
+  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-analytics-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // 🔥 ตั้งค่า Firebase
+    // --- Firebase config ---
     const firebaseConfig = {
       apiKey: "AIzaSyCelpYvwoijqpoTsW-AhkD0scf3BRSB2Dg",
       authDomain: "loy-krathong-online.firebaseapp.com",
@@ -36,138 +49,44 @@
       appId: "1:89800674529:web:8af447aba6a5fb2067fba0",
       measurementId: "G-41Z1GFH6RQ"
     };
-
     firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
     const db = firebase.firestore();
 
-    // 🌊 แสดงกระทงจาก Firebase ให้ลอยผ่านแม่น้ำ
-    const river = document.querySelector(".river");
-
-    db.collection("krathongWishes")
-      .orderBy("timestamp", "desc")
-      .limit(40)
-      .onSnapshot((snapshot) => {
-        river.innerHTML = "";
-
-        snapshot.forEach((doc, i) => {
-          const d = doc.data();
-
-          const lane = 30 + Math.random() * 120;
-          const delay = 3 + Math.random() * 5;
-          const duration = 18 + Math.random() * 8;
-
-          const wrap = document.createElement("div");
-          wrap.className = "krathong-wrap";
-          wrap.style.bottom = `${lane}px`;
-          wrap.style.animation = `floatAcross ${duration}s linear ${delay}s infinite`;
-
-          const bubble = document.createElement("div");
-          bubble.className = "wish-bubble";
-          bubble.innerHTML = `<div class="text">${d.wish || ""}</div>`;
-
-          const img = document.createElement("img");
-          img.className = "krathong-img";
-          img.src = d.krathong || "พนานาก.png";
-
-          wrap.appendChild(bubble);
-          wrap.appendChild(img);
-          river.appendChild(wrap);
-        });
-      });
-
-    /* 🌟 STARFIELD (ดาววิบวับ) */
-    const starCanvas = document.getElementById('stars');
-    const sctx = starCanvas.getContext('2d', { alpha: true });
-    function fitStars(){
-      starCanvas.width  = innerWidth;
-      starCanvas.height = innerHeight;
+    // --- เลือกกระทง ---
+    let selectedKrathong = null;
+    function selectKrathong(el){
+      document.querySelectorAll(".krathong-grid img")
+        .forEach(img => img.classList.remove("active"));
+      el.classList.add("active");
+      selectedKrathong = el.getAttribute("src");
     }
-    fitStars();
-    addEventListener('resize', fitStars);
 
-    const STAR_COUNT = 200;
-    const stars = Array.from({length: STAR_COUNT}).map(()=>({
-      x: Math.random()*innerWidth,
-      y: Math.random()*innerHeight,
-      r: Math.random()*1.8 + 0.5,
-      p: Math.random()*Math.PI*2,
-      s: 0.015 + Math.random()*0.02
-    }));
+    // --- บันทึกลง Firestore แล้วไป manu.html ---
+    async function saveAndGo(){
+      const name = document.getElementById("name").value.trim() || "ไม่ระบุชื่อ";
+      const wish = document.getElementById("wish").value.trim() || "ขอให้สุขสมหวัง 🌕";
+      const krathong = selectedKrathong || "ยังไม่ได้เลือก";
+      const time = new Date().toISOString();
 
-    function tickStars(){
-      sctx.clearRect(0,0,starCanvas.width, starCanvas.height);
-      for(const st of stars){
-        st.p += st.s;
-        const tw = (Math.sin(st.p)+1)/2;
-        sctx.globalAlpha = 0.3 + tw*0.7;
-        sctx.beginPath();
-        sctx.arc(st.x, st.y, st.r, 0, Math.PI*2);
-        sctx.fillStyle = "#fff";
-        sctx.fill();
-      }
-      requestAnimationFrame(tickStars);
-    }
-    tickStars();
+      try{
+        const docRef = await db.collection("krathongWishes").add({
+  name,
+  wish,
+  krathong: selectedKrathong,
+  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
 
-    /* 🎆 FIREWORKS (พลุ) */
-    const fwCanvas = document.getElementById('fireworks');
-    const fctx = fwCanvas.getContext('2d', { alpha: true });
-    function fitFW(){
-      fwCanvas.width  = innerWidth;
-      fwCanvas.height = innerHeight;
-    }
-    fitFW();
-    addEventListener('resize', fitFW);
-
-    const particles = [];
-    const GRAVITY = 0.06, FRICTION = 0.985;
-
-    function spawnBurst(x, y, count = 60){
-      const hue = (Math.random()*360)|0;
-      for(let i=0;i<count;i++){
-        const a = (Math.PI*2)*(i/count);
-        const sp = 2 + Math.random()*3.5;
-        particles.push({
-          x, y,
-          vx: Math.cos(a)*sp,
-          vy: Math.sin(a)*sp,
-          life: 60 + Math.random()*40,
-          color: `hsl(${hue + Math.random()*50},100%,60%)`,
-          size: 2 + Math.random()*2
-        });
+        // เก็บไว้ใน sessionStorage เผื่อใช้โชว์ทันทีหน้า manu
+        sessionStorage.setItem("lastWish",
+          JSON.stringify({ id: docRef.id, name, wish, krathong, time }));
+        // ไปหน้าต่อ
+        window.location.href = "index.html";
+      }catch(err){
+        console.error(err);
+        alert("❌ บันทึกไม่สำเร็จ โปรดลองอีกครั้ง");
       }
     }
-
-    function tickFW(){
-      fctx.clearRect(0,0,fwCanvas.width,fwCanvas.height);
-      for(let i=particles.length-1;i>=0;i--){
-        const p = particles[i];
-        p.vx *= FRICTION;
-        p.vy = p.vy*FRICTION + GRAVITY;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-        fctx.globalAlpha = Math.max(0, p.life/90);
-        fctx.beginPath();
-        fctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-        fctx.fillStyle = p.color;
-        fctx.fill();
-        if(p.life<=0) particles.splice(i,1);
-      }
-      requestAnimationFrame(tickFW);
-    }
-    tickFW();
-
-    // ยิงพลุเรื่อยๆ
-    setInterval(()=>{
-      const x = 100 + Math.random()*(innerWidth-200);
-      const y = 100 + Math.random()*(innerHeight*0.4);
-      spawnBurst(x, y, 70);
-    }, 1500);
-
-    // คลิกจอเพื่อจุดพลุเอง
-    document.addEventListener('click', e => spawnBurst(e.clientX, e.clientY, 80));
   </script>
-
 </body>
 </html>
